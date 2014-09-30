@@ -1,0 +1,6 @@
+development: &development
+  api:
+    url: "http://localhost:9393/"
+
+default:
+  <<: *development
