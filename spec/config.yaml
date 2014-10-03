@@ -1,6 +1,7 @@
 development: &development
   api:
     url: "http://localhost:9393/"
+  db_connect: "postgres://user:pass@127.0.0.1/test"
 
 default:
   <<: *development
