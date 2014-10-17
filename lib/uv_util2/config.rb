@@ -1,6 +1,6 @@
 require "yaml"
 require "erb"
-require 'active_support/core_ext'
+require 'active_support/all'
 
 module UvUtil2
   class Config
