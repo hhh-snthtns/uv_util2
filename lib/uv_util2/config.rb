@@ -1,5 +1,6 @@
 require "yaml"
 require "erb"
+require 'active_support'
 require 'active_support/core_ext'
 
 module UvUtil2
