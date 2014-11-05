@@ -15,5 +15,29 @@ module UvUtil2
       res.extension :pg_array, :pg_json
       res
     end
+
+    def make_params(params)
+      if !params[:now]
+        params[:now] = get_now()
+      end
+      params
+    end
+
+    def get_one(ds, params)
+      ds.call(:first, make_params(params))
+    end
+
+    def get_list(ds, params)
+      ds.call(:select, make_params(params))
+    end
+
+    def ps_call(ps, params)
+      ps.call(make_params(params))
+    end
+
+    def get_now
+      nil
+    end
+
   end
 end
