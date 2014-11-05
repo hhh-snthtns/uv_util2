@@ -41,7 +41,7 @@ module UvUitl2
           error_ts = @mailer.process_error(e, error_ts, subject: "base_execute") if @mailer
 
           # 一定期間スリープする
-          sleep error_sleep_second
+          sleep error_sleep_second if !error_sleep_second.nil? && error_sleep_second > 0
         end
       end
     end
