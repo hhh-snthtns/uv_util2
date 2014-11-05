@@ -4,11 +4,15 @@ require 'timeout'
 module UvUitl2
   module QueueTask
     def init(
+      @queue = SizedQueue.new(@worker_count)
+      @execute_flag = true
+      @thread_list = []
       @worker_count.times do
         @thread_list << Thread.new do
           base_execute(@worker_error_sleep_second) do
             data = @queue.pop
             execute_worker(data)
+            sleep @worker_sleep_second if !@worker_sleep_second.nil? && @worker_sleep_second > 0
           end
         end
       end
@@ -48,7 +52,7 @@ module UvUitl2
         if data
           @queue.push(data)
         else
-          sleep @task_sleep_second
+          sleep @task_sleep_second if !@task_sleep_second.nil? && @task_sleep_second > 0
         end
       end
     end
