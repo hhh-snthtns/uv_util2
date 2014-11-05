@@ -3,7 +3,7 @@ require 'timeout'
 
 module UvUitl2
   module QueueTask
-    def init(
+    def init
       @queue = SizedQueue.new(@worker_count)
       @execute_flag = true
       @thread_list = []
