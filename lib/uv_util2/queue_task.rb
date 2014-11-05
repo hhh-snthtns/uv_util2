@@ -1,7 +1,7 @@
 require 'thread'
 require 'timeout'
 
-module UvUitl2
+module UvUtil2
   module QueueTask
     def init
       @queue = SizedQueue.new(@worker_count)
