@@ -2,7 +2,7 @@ require "moped"
 
 module UvUtil2
   class MongoLog
-    def initialize(server_ary, db_name)
+    def initialize(server_ary: nil, db_name: "")
       @session = Moped::Session.new(server_ary)
       @session.use db_name
     end
