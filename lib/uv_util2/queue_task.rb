@@ -29,6 +29,10 @@ module UvUtil2
       true
     end
 
+    def get_queue
+      @queue
+    end
+
     def base_execute(error_sleep_second)
       error_ts = nil
       while @execute_flag do
