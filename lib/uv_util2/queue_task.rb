@@ -4,7 +4,7 @@ require 'timeout'
 module UvUtil2
   module QueueTask
     def init
-      @queue = SizedQueue.new(@worker_count)
+      @queue = make_queue
       @execute_flag = true
       @thread_list = []
       @worker_count.times do
@@ -16,6 +16,10 @@ module UvUtil2
           end
         end
       end
+    end
+
+    def make_queue
+      SizedQueue.new(@worker_count)
     end
 
     def stop
