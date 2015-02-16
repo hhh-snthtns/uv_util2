@@ -16,6 +16,13 @@ module UvUtil2
       res
     end
 
+    def self.disconnect(db)
+      if !db.nil?
+        db.disconnect
+        Sequel::DATABASES.delete(db)
+      end
+    end
+
     def make_params(params)
       if !params[:now]
         params[:now] = get_now()
