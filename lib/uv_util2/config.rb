@@ -5,10 +5,10 @@ require 'active_support/core_ext'
 
 module UvUtil2
   class Config
-    def self.read(path, env)
+    def self.read(path, env=nil)
       open(path) do |f|
         yaml = ::YAML::load(::ERB.new(f.read).result).deep_symbolize_keys
-        yaml[env]
+        env.present? ? yaml[env] : yaml
       end
     end
   end
