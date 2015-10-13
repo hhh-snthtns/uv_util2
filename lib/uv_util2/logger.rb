@@ -4,7 +4,7 @@ module UvUtil2
   class Logger
     def initialize(config)
       @config = config
-      log = Fluent::Logger::FluentLogger.new(
+      @log = Fluent::Logger::FluentLogger.new(
         @config[:tag], host: @config[:host], port: @config[:port])
     end
 
@@ -34,7 +34,7 @@ module UvUtil2
 
     def add(log_level, msg)
       res = msg.is_a?(Hash) ? msg : {msg: msg}
-      log.post(log_level.to_s, msg)
+      @log.post(log_level.to_s, msg)
     end
   end
 end
