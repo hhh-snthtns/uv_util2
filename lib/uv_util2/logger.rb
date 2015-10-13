@@ -33,8 +33,14 @@ module UvUtil2
     end
 
     def add(log_level, msg)
-      res = msg.is_a?(Hash) ? msg : {msg: msg}
-      @log.post(log_level.to_s, msg)
+      res = if msg.is_a?(Hash)
+        msg
+      elsif msg.is_a?(StandardError)
+        {msg: msg.to_s + "\n" + msg.backtrace.join("\n")} 
+      else
+        {msg: msg.to_s}
+      end
+      @log.post(log_level.to_s, res)
     end
   end
 end
