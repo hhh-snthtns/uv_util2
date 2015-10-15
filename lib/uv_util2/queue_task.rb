@@ -47,6 +47,7 @@ module UvUtil2
         rescue Exception => e
           # エラーが起きたら一定期間ごとにメールを送信する
           error_ts = @mailer.process_error(e, error_ts, subject: "base_execute") if @mailer
+          @logger.warn(e) if @logger
 
           # 一定期間スリープする
           sleep error_sleep_second if !error_sleep_second.nil? && error_sleep_second > 0
