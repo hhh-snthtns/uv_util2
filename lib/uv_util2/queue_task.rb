@@ -45,6 +45,9 @@ module UvUtil2
             yield
           end
         rescue Exception => e
+          # シグナルをキャッチしたら直ちに終了する
+          return if e.is_a?(SignalException)
+
           # エラーが起きたら一定期間ごとにメールを送信する
           error_ts = @mailer.process_error(e, error_ts, subject: "base_execute") if @mailer
           @logger.warn(e) if @logger
