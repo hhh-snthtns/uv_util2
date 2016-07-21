@@ -29,7 +29,7 @@ module UvUtil2
 
     def make_error_msg(error)
       if error.is_a?(Exception)
-        error.to_s + "\n" + error.backtrace.join("\n")
+        error.class.name + "\n" + error.message + "\n" + error.backtrace.join("\n")
       else
         error.to_s
       end
