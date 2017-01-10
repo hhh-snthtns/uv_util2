@@ -38,7 +38,7 @@ module UvUtil2
     end
 
     def error_log(**options)
-      error_content = options[:exception] ? UvUtil2::AwsLog::make_error_msg(options[:exception]) + "\n" : ""
+      error_content = options[:exception] ? UvUtil2::SlackDynamoLog::make_error_msg(options[:exception]) + "\n" : ""
       content = ""
       options.each_pair do |key, value|
         content = "#{content}#{key}:#{value}\n" if key != :exception
