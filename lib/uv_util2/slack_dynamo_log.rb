@@ -7,8 +7,15 @@ module UvUtil2
       e.message + sep + e.backtrace[0..len].join(sep)
     end
 
-    def initialize(table_name: nil, channel: nil, username: nil, mailer: nil, logger: nil, dynamo: nil, is_dev: false)
-      @config = config
+    def initialize(
+      table_name: nil, 
+      channel: nil, 
+      username: nil, 
+      mailer: nil, 
+      logger: nil, 
+      dynamo: nil, 
+      is_dev: false
+    )
       @dynamo = dynamo
       @mailer = mailer
       @logger = logger
@@ -20,6 +27,14 @@ module UvUtil2
 
     def get_dynamo
       @dynamo
+    end
+
+    def get_logger
+      @logger
+    end
+
+    def get_mailer
+      @mailer
     end
 
     def error_log(**options)
