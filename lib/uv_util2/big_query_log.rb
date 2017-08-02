@@ -25,7 +25,7 @@ module UvUtil2
       date_str = target_at.strftime('%Y%m%d')
 
       # データセット取得
-      dataset = @project.dataset(@dataset_name)
+      dataset = get_dataset
 
       # 時間別テーブル作成
       (0 .. 23).each do |hour|
@@ -47,7 +47,19 @@ module UvUtil2
       end
     end
 
+    # テーブル取得
+    # @param table_id [String] テーブル名
+    #
+    def table(table_id)
+      get_dataset.table(table_id)
+    end
+
     private
+
+    # データセット取得
+    def get_dataset
+      @project.dataset(@dataset_name)
+    end
 
     # ログテーブルにカラムを作成する
     # @param schema [Google::Cloud::Bigquery::Schema] スキーマ
