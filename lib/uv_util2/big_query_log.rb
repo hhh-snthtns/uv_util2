@@ -35,7 +35,7 @@ module UvUtil2
           # テーブル作成
           dataset.create_table(table_name) do |table|
             table.schema do |schema|
-              block ? block(schema) : default_schema(schema)
+              block ? block.call(schema) : default_schema(schema)
             end
           end
 
