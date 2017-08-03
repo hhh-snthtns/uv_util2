@@ -1,6 +1,8 @@
 require 'active_support'
 require 'active_support/core_ext'
 require 'google/cloud/bigquery'
+require 'csv'
+require 'tempfile'
 
 module UvUtil2
   class BigQueryLog
@@ -55,6 +57,25 @@ module UvUtil2
     #
     def table(table_id)
       get_dataset.table(table_id)
+    end
+
+    # データをテーブルに保存する
+    # @param table_id [String] テーブル名
+    # @param data [Array<Array<String>>] テーブルに登録する二次元配列のデータ
+    #
+    def load_data(table_id, data)
+      # アップロードするCSVファイルを一時ファイルとして作成する
+      Tempfile.open(['bq_', '.csv']) do |file|
+        # データをCSV形式で一時ファイルに書き込む
+        data.each do |row|
+          record = CSV.generate_line(row, {force_quotes: true, row_sep: "\r\n"})
+          file.write(record)
+        end
+
+        # CSVフィルをアップロードする
+        file.rewind
+        self.table(table_id).load file
+      end
     end
 
     private
