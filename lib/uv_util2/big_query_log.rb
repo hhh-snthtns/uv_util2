@@ -30,6 +30,7 @@ module UvUtil2
 
       # データセット取得
       dataset = get_dataset
+      raise "not found the dataset #{@dataset_name}" if dataset.nil?
 
       # 時間別テーブル作成
       (0 .. 23).each do |hour|
