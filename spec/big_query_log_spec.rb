@@ -33,7 +33,7 @@ RSpec.describe UvUtil2::BigQueryLog do
     end
 
     allow(mock_dataset).to receive(:table) do |table_id|
-      mock_table
+      'nothing' == table_id ? nil :  mock_table
     end
 
     mock_project = double('project')
@@ -59,6 +59,11 @@ RSpec.describe UvUtil2::BigQueryLog do
     )
   end
 
+  # BigQueryLogオブジェクトを生成
+  let (:get_bq_log) do
+    UvUtil2::BigQueryLog.new(get_bq_project, @dataset_name, logger: @logger)
+  end
+
   describe '準正常系' do
     describe 'テーブル作成' do
       it '存在しないデータセット名を指定すると例外になること' do
@@ -72,14 +77,19 @@ RSpec.describe UvUtil2::BigQueryLog do
         }.to raise_error("not found the dataset #{dataset_name}")
       end
     end
+
+    describe 'データ読み込み' do
+      it '存在しないテーブル名を指定すると例外になること' do
+        table_name = 'nothing'
+        data = [['1a', '1b', '1c', '1d']]
+        expect {
+          get_bq_log.load_data(table_name, data)
+        }.to raise_error("not found the table #{table_name}")
+      end
+    end
   end
 
   describe '正常系' do
-    # BigQueryLogオブジェクトを生成
-    let (:get_bq_log) do
-      UvUtil2::BigQueryLog.new(get_bq_project, @dataset_name, logger: @logger)
-    end
-
     describe 'テーブル作成' do
       it 'デフォルトのスキーマでテーブルの作成に成功すること' do
         get_bq_log.create_table('ddd')

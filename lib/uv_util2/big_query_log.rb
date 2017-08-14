@@ -34,7 +34,7 @@ module UvUtil2
 
       # 時間別テーブル作成
       (0 .. 23).each do |hour|
-        table_name = "#{prefix}_#{date_str}_#{hour}"
+        table_name = "#{prefix}_#{date_str}_#{sprintf('%02d', hour)}"
 
         begin
           # テーブル作成
@@ -65,6 +65,9 @@ module UvUtil2
     # @param data [Array<Array<String>>] テーブルに登録する二次元配列のデータ
     #
     def load_data(table_id, data)
+      bq_table = self.table(table_id)
+      raise "not found the table #{table_id}" if bq_table.nil?
+
       # アップロードするCSVファイルを一時ファイルとして作成する
       Tempfile.open(['bq_', '.csv']) do |file|
         # データをCSV形式で一時ファイルに書き込む
@@ -75,7 +78,7 @@ module UvUtil2
 
         # CSVフィルをアップロードする
         file.rewind
-        self.table(table_id).load file
+        bq_table.load file
       end
     end
 
