@@ -9,20 +9,23 @@ module UvUtil2
     # 初期化
     # @param project [Google::Cloud::Bigquery::Project] BigQueryプロジェクト
     # @param dataset_name [String] データセット名
+    # @param prefix [String] テーブル名の接頭子
     # @param logger [Logger] ロガー
+    # @param expiration [Integer] データセットの有効期限
     #
-    def initialize(project, dataset_name, logger: nil)
+    def initialize(project, dataset_name, prefix, logger: nil, expiration: nil)
       @project = project
       @dataset_name = dataset_name
+      @prefix = prefix
       @logger = logger
+      @expiration = expiration
     end
 
     # 時間別テーブル作成
-    # @param prefix [String] テーブル名プレフィックス
     # @param now [Time] 現在日時
     # @param block [Proc] テーブルにカラムを追加する処理を行うブロック
     #
-    def create_table(prefix, now: nil, &block)
+    def create_table(now: nil, &block)
       # テーブル名の日付部分を決定
       # 翌日1日分のテーブルを作成する
       target_at = (now.nil? ? Time.now : now) + 1.day
@@ -30,43 +33,24 @@ module UvUtil2
 
       # データセット取得
       dataset = get_dataset
-      raise "not found the dataset #{@dataset_name}" if dataset.nil?
 
       # 時間別テーブル作成
       (0 .. 23).each do |hour|
-        table_name = "#{prefix}_#{date_str}_#{sprintf('%02d', hour)}"
-
-        begin
-          # テーブル作成
-          dataset.create_table(table_name) do |table|
-            table.schema do |schema|
-              block ? block.call(schema) : default_schema(schema)
-            end
-          end
-
-        rescue => e
-          # テーブルがすでに存在する場合はエラーを無視して次へ進む
-          raise e if !duplicate_table?(e, table_name)
-          alert(e)
-        end
+        create_hour_table(dataset, now: target_at, hour: hour, block: block)
       end
     end
 
-    # テーブル取得
-    # @param table_id [String] テーブル名
-    # @return [Google::Cloud::Bigquery::Table] テーブル
-    #
-    def table(table_id)
-      get_dataset.table(table_id)
-    end
-
     # データをテーブルに保存する
-    # @param table_id [String] テーブル名
     # @param data [Array<Array<String>>] テーブルに登録する二次元配列のデータ
+    # @param now [DateTime] ログ出力日時
+    # @param block [Proc] ログ保存先テーブルが存在しなかった場合に実行するスキーマ作成処理
     #
-    def load_data(table_id, data)
-      bq_table = self.table(table_id)
-      raise "not found the table #{table_id}" if bq_table.nil?
+    def load_data(data, now: nil, &block)
+      # データセットの取得または作成
+      dataset = get_dataset
+
+      # テーブルの取得または作成
+      bq_table = create_hour_table(dataset, now: now, block: block)
 
       # アップロードするCSVファイルを一時ファイルとして作成する
       Tempfile.open(['bq_', '.csv']) do |file|
@@ -84,11 +68,59 @@ module UvUtil2
 
     private
 
-    # データセット取得
+    # データセットの取得または作成
     # @return [Google::Cloud::Bigquery::Dataset] データセット
     #
     def get_dataset
-      @project.dataset(@dataset_name)
+      # 取得できたらそのまま返却する
+      dataset = @project.dataset(@dataset_name)
+      return dataset if !dataset.nil?
+
+      # データセットを新規作成
+      begin
+        @project.create_dataset(@dataset_name, expiration: @expiration)
+
+      rescue => e
+        # データセットがすでに存在する場合は例外を無視
+        raise e if !duplicate_dataset?(e)
+        alert(e)
+        @project.dataset(@dataset_name)
+      end
+    end
+
+    # 時間単位のテーブル取得または作成
+    # @param dataset [Google::Cloud::Bigquery::Dataset] データセット
+    # @param now [DateTime] 現在日時
+    # @param hour [Integer] テーブル名の時間
+    # @param block [Proc] ログ保存先テーブルが存在しなかった場合に実行するスキーマ作成処理
+    # @return [Google::Cloud::Bigquery::Table] テーブル
+    #
+    def create_hour_table(dataset, now: nil, hour: nil, block: nil)
+      target_at = (now.nil? ? Time.now : now)
+      date_str = target_at.strftime('%Y%m%d')
+      hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
+
+      # テーブル名を決定
+      table_name = "#{@prefix}_#{date_str}_#{hour_str}"
+
+      # テーブルを取得できたらそのまま返却
+      bq_table = dataset.table(table_name)
+      return bq_table if !bq_table.nil?
+
+      # テーブル作成
+      begin
+        dataset.create_table(table_name) do |table|
+          table.schema do |schema|
+            block ? block.call(schema) : default_schema(schema)
+          end
+        end
+
+      rescue => e
+        # テーブルがすでに存在する場合は例外を無視
+        raise e if !duplicate_table?(e, table_name)
+        alert(e)
+        dataset.table(table_name)
+      end
     end
 
     # ログテーブルにカラムを作成する
@@ -106,10 +138,18 @@ module UvUtil2
       schema.string 'log_json', mode: :required
     end
 
-    # テーブルがすでに存在するエラーかどうかを判定
+    # データセットがすでに存在する例外かどうかを判定
+    # @param e [Exception] 例外
+    # @return [Boolean] データセットがすでに存在する例外の場合にtrue
+    #
+    def duplicate_dataset?(e)
+      /duplicate: Already Exists: Dataset #{@project.project}:#{@dataset_name}/
+    end
+
+    # テーブルがすでに存在する例外かどうかを判定
     # @param e [Exception] 例外
     # @param table_name [String] テーブル名
-    # @return [Boolean] テーブルがすでに存在するエラーの場合にtrue
+    # @return [Boolean] テーブルがすでに存在する例外の場合にtrue
     #
     def duplicate_table?(e, table_name)
       table_cd = "#{@project.project}:#{@dataset_name}.#{table_name}"
