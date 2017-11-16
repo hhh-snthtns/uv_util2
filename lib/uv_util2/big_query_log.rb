@@ -11,12 +11,14 @@ module UvUtil2
     # @param dataset_name [String] データセット名
     # @param prefix [String] テーブル名の接頭子
     # @param logger [Logger] ロガー
+    # @param expiration [Integer] データセットの有効期限
     #
-    def initialize(project, dataset_name, prefix, logger: nil)
+    def initialize(project, dataset_name, prefix, logger: nil, expiration: nil)
       @project = project
       @dataset_name = dataset_name
       @prefix = prefix
       @logger = logger
+      @expiration = expiration
     end
 
     # 時間別テーブル作成
@@ -76,7 +78,7 @@ module UvUtil2
 
       # データセットを新規作成
       begin
-        @project.create_dataset(@dataset_name)
+        @project.create_dataset(@dataset_name, expiration: @expiration)
 
       rescue => e
         # データセットがすでに存在する場合は例外を無視
