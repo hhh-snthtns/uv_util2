@@ -23,9 +23,10 @@ module UvUtil2
 
     # 時間別テーブル作成
     # @param now [Time] 現在日時
+    # @param min_count [Integer] 分単位でも分割したい場合の分数
     # @param block [Proc] テーブルにカラムを追加する処理を行うブロック
     #
-    def create_table(now: nil, &block)
+    def create_table(now: nil, min_count: nil, &block)
       # テーブル名の日付部分を決定
       # 翌日1日分のテーブルを作成する
       target_at = (now.nil? ? Time.now : now) + 1.day
@@ -34,9 +35,18 @@ module UvUtil2
       # データセット取得
       dataset = get_dataset
 
-      # 時間別テーブル作成
-      (0 .. 23).each do |hour|
-        create_hour_table(dataset, now: target_at, hour: hour, block: block)
+      if min_count.nil?
+        # 時間別テーブル作成
+        (0 .. 23).each do |hour|
+          create_hour_min_table(dataset, now: target_at, hour: hour, block: block)
+        end
+      else
+        # 分で分割してテーブル作成
+        (0 .. 23).each do |hour|
+          (0..59).each_slice(min_count).map(&:first).each do |min|
+            create_hour_min_table(dataset, now: target_at, hour: hour, min: min, block: block)
+          end
+        end
       end
     end
 
@@ -92,16 +102,18 @@ module UvUtil2
     # @param dataset [Google::Cloud::Bigquery::Dataset] データセット
     # @param now [DateTime] 現在日時
     # @param hour [Integer] テーブル名の時間
+    # @param min [Integer] テーブル名の分
     # @param block [Proc] ログ保存先テーブルが存在しなかった場合に実行するスキーマ作成処理
     # @return [Google::Cloud::Bigquery::Table] テーブル
     #
-    def create_hour_table(dataset, now: nil, hour: nil, block: nil)
+    def create_hour_min_table(dataset, now: nil, hour: nil, min: nil, block: nil)
       target_at = (now.nil? ? Time.now : now)
       date_str = target_at.strftime('%Y%m%d')
       hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
+      min_str = min.nil? ? '' : "_#{ sprintf('%02d', min) }"
 
       # テーブル名を決定
-      table_name = "#{@prefix}_#{date_str}_#{hour_str}"
+      table_name = "#{@prefix}_#{date_str}_#{hour_str}#{min_str}"
 
       # テーブルを取得できたらそのまま返却
       bq_table = dataset.table(table_name)
