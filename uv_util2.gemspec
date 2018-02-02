@@ -26,4 +26,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pg", "~> 0"
   spec.add_development_dependency "moped", "~> 0"
   spec.add_development_dependency "fluent-logger"
+  spec.add_development_dependency "google-cloud-bigquery", "~> 1.0.0"
 end
