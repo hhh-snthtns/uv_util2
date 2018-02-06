@@ -44,7 +44,7 @@ module UvUtil2
       else
         # 分で分割してテーブル作成
         (0 .. 23).each do |hour|
-          (0..59).each_slice(min_count).map(&:first).each do |min|
+          (0..59).each_slice(@min_count).map(&:first).each do |min|
             create_hour_min_table(dataset, now: target_at, hour: hour, min: min, block: block)
           end
         end
