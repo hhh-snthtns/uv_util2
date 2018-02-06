@@ -60,7 +60,7 @@ module UvUtil2
       dataset = get_dataset
 
       # テーブルの取得または作成
-      bq_table = create_hour_table(dataset, now: now, block: block)
+      bq_table = create_hour_min_table(dataset, now: now, block: block)
 
       # アップロードするCSVファイルを一時ファイルとして作成する
       Tempfile.open(['bq_', '.csv']) do |file|
