@@ -71,10 +71,17 @@ module UvUtil2
           file.write(record)
         end
 
-        # CSVフィルをアップロードする
+        # CSVファイルをアップロードする
         file.rewind
         bq_table.load file
       end
+    end
+
+    # 記録が終わっている直近のテーブル名
+    # @param now [Time] 現在日時
+    #
+    def recent_table_name(now: Time.now)
+      build_table_name(calc_recent_table_time(now))
     end
 
     private
@@ -108,13 +115,8 @@ module UvUtil2
     # @return [Google::Cloud::Bigquery::Table] テーブル
     #
     def create_hour_min_table(dataset, now: nil, hour: nil, min: nil, block: nil)
-      target_at = (now.nil? ? Time.now : now)
-      date_str = target_at.strftime('%Y%m%d')
-      hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
-      min_str = sprintf('%02d', min.nil? ? target_at.min : min) if @min_count
-
       # テーブル名を決定
-      table_name = [@prefix, date_str, "#{ hour_str }#{ min_str || '' }"].join('_')
+      table_name = build_table_name(now || Time.now, hour: hour, min: min)
 
       # テーブルを取得できたらそのまま返却
       bq_table = dataset.table(table_name)
@@ -184,6 +186,32 @@ module UvUtil2
     def calc_min_for_table(now: Time.now)
       return nil if now.nil? || @min_count.nil?
       (now.min.to_f / @min_count.to_f).floor * @min_count
+    end
+
+    # 記録が終わっている直近のテーブルの時間を算出
+    # ex:
+    #   10 分単位で分割, now: 14:55 -> 14:40
+    #   分単位では分割なし, now: 14:55 -> 13:00
+    def calc_recent_table_time(now)
+      if @min_count.present?
+        t = now - @min_count.minutes
+        min = (t.min.to_f / @min_count.to_f).floor * @min_count
+        t.change(min: min, sec: 0)
+      else
+        (now - 1.hour).change(min: 0, sec: 0)
+      end
+    end
+
+    # テーブル名を組み立て
+    # @param target_at [DateTime] 基準とする時間
+    # @param hour [Integer] テーブル名の時間. target_at の時間を上書く
+    # @param min [Integer] テーブル名の分. target_at の分を上書く
+    #
+    def build_table_name(target_at, hour: nil, min: nil)
+      date_str = target_at.strftime('%Y%m%d')
+      hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
+      min_str = sprintf('%02d', min.nil? ? target_at.min : min) if @min_count
+      [@prefix, date_str, "#{ hour_str }#{ min_str }"].join('_')
     end
   end
 end
