@@ -10,23 +10,24 @@ module UvUtil2
     # @param project [Google::Cloud::Bigquery::Project] BigQueryプロジェクト
     # @param dataset_name [String] データセット名
     # @param prefix [String] テーブル名の接頭子
+    # @param min_count [Integer] テーブルを分単位で分割する場合の分数
     # @param logger [Logger] ロガー
     # @param expiration [Integer] データセットの有効期限
     #
-    def initialize(project, dataset_name, prefix, logger: nil, expiration: nil)
+    def initialize(project, dataset_name, prefix, min_count: nil, logger: nil, expiration: nil)
       @project = project
       @dataset_name = dataset_name
       @prefix = prefix
+      @min_count = min_count
       @logger = logger
       @expiration = expiration
     end
 
     # 時間別テーブル作成
     # @param now [Time] 現在日時
-    # @param min_count [Integer] 分単位でも分割したい場合の分数
     # @param block [Proc] テーブルにカラムを追加する処理を行うブロック
     #
-    def create_table(now: nil, min_count: nil, &block)
+    def create_table(now: nil, &block)
       # テーブル名の日付部分を決定
       # 翌日1日分のテーブルを作成する
       target_at = (now.nil? ? Time.now : now) + 1.day
@@ -35,7 +36,7 @@ module UvUtil2
       # データセット取得
       dataset = get_dataset
 
-      if min_count.nil?
+      if @min_count.nil?
         # 時間別テーブル作成
         (0 .. 23).each do |hour|
           create_hour_min_table(dataset, now: target_at, hour: hour, block: block)
@@ -43,7 +44,7 @@ module UvUtil2
       else
         # 分で分割してテーブル作成
         (0 .. 23).each do |hour|
-          (0..59).each_slice(min_count).map(&:first).each do |min|
+          (0..59).each_slice(@min_count).map(&:first).each do |min|
             create_hour_min_table(dataset, now: target_at, hour: hour, min: min, block: block)
           end
         end
@@ -60,7 +61,7 @@ module UvUtil2
       dataset = get_dataset
 
       # テーブルの取得または作成
-      bq_table = create_hour_min_table(dataset, now: now, block: block)
+      bq_table = create_hour_min_table(dataset, now: now, min: calc_min_for_table, block: block)
 
       # アップロードするCSVファイルを一時ファイルとして作成する
       Tempfile.open(['bq_', '.csv']) do |file|
@@ -70,10 +71,17 @@ module UvUtil2
           file.write(record)
         end
 
-        # CSVフィルをアップロードする
+        # CSVファイルをアップロードする
         file.rewind
         bq_table.load file
       end
+    end
+
+    # 記録が終わっている直近のテーブル名
+    # @param now [Time] 現在日時
+    #
+    def recent_table_name(now: Time.now)
+      build_table_name(calc_recent_table_time(now))
     end
 
     private
@@ -107,13 +115,8 @@ module UvUtil2
     # @return [Google::Cloud::Bigquery::Table] テーブル
     #
     def create_hour_min_table(dataset, now: nil, hour: nil, min: nil, block: nil)
-      target_at = (now.nil? ? Time.now : now)
-      date_str = target_at.strftime('%Y%m%d')
-      hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
-      min_str = min.nil? ? '' : "_#{ sprintf('%02d', min) }"
-
       # テーブル名を決定
-      table_name = "#{@prefix}_#{date_str}_#{hour_str}#{min_str}"
+      table_name = build_table_name(now || Time.now, hour: hour, min: min)
 
       # テーブルを取得できたらそのまま返却
       bq_table = dataset.table(table_name)
@@ -177,5 +180,38 @@ module UvUtil2
       @logger.public_send(level, e.message)
     end
 
+    # 現在日時からテーブル名の分数を計算. 分単位のテーブル分割をしていない場合 nil を返す
+    # @param now [Time] 現在日時
+    #
+    def calc_min_for_table(now: Time.now)
+      return nil if now.nil? || @min_count.nil?
+      (now.min.to_f / @min_count.to_f).floor * @min_count
+    end
+
+    # 記録が終わっている直近のテーブルの時間を算出
+    # ex:
+    #   10 分単位で分割, now: 14:55 -> 14:40
+    #   分単位では分割なし, now: 14:55 -> 13:00
+    def calc_recent_table_time(now)
+      if @min_count.present?
+        t = now - @min_count.minutes
+        min = (t.min.to_f / @min_count.to_f).floor * @min_count
+        t.change(min: min, sec: 0)
+      else
+        (now - 1.hour).change(min: 0, sec: 0)
+      end
+    end
+
+    # テーブル名を組み立て
+    # @param target_at [DateTime] 基準とする時間
+    # @param hour [Integer] テーブル名の時間. target_at の時間を上書く
+    # @param min [Integer] テーブル名の分. target_at の分を上書く
+    #
+    def build_table_name(target_at, hour: nil, min: nil)
+      date_str = target_at.strftime('%Y%m%d')
+      hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
+      min_str = sprintf('%02d', min.nil? ? target_at.min : min) if @min_count
+      [@prefix, date_str, "#{ hour_str }#{ min_str }"].join('_')
+    end
   end
 end
