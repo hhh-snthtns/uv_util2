@@ -10,23 +10,24 @@ module UvUtil2
     # @param project [Google::Cloud::Bigquery::Project] BigQueryプロジェクト
     # @param dataset_name [String] データセット名
     # @param prefix [String] テーブル名の接頭子
+    # @param min_count [Integer] テーブルを分単位で分割する場合の分数
     # @param logger [Logger] ロガー
     # @param expiration [Integer] データセットの有効期限
     #
-    def initialize(project, dataset_name, prefix, logger: nil, expiration: nil)
+    def initialize(project, dataset_name, prefix, min_count: nil, logger: nil, expiration: nil)
       @project = project
       @dataset_name = dataset_name
       @prefix = prefix
+      @min_count = min_count
       @logger = logger
       @expiration = expiration
     end
 
     # 時間別テーブル作成
     # @param now [Time] 現在日時
-    # @param min_count [Integer] 分単位でも分割したい場合の分数
     # @param block [Proc] テーブルにカラムを追加する処理を行うブロック
     #
-    def create_table(now: nil, min_count: nil, &block)
+    def create_table(now: nil, &block)
       # テーブル名の日付部分を決定
       # 翌日1日分のテーブルを作成する
       target_at = (now.nil? ? Time.now : now) + 1.day
@@ -35,7 +36,7 @@ module UvUtil2
       # データセット取得
       dataset = get_dataset
 
-      if min_count.nil?
+      if @min_count.nil?
         # 時間別テーブル作成
         (0 .. 23).each do |hour|
           create_hour_min_table(dataset, now: target_at, hour: hour, block: block)
@@ -60,7 +61,7 @@ module UvUtil2
       dataset = get_dataset
 
       # テーブルの取得または作成
-      bq_table = create_hour_min_table(dataset, now: now, block: block)
+      bq_table = create_hour_min_table(dataset, now: now, min: calc_min_for_table, block: block)
 
       # アップロードするCSVファイルを一時ファイルとして作成する
       Tempfile.open(['bq_', '.csv']) do |file|
@@ -110,10 +111,10 @@ module UvUtil2
       target_at = (now.nil? ? Time.now : now)
       date_str = target_at.strftime('%Y%m%d')
       hour_str = sprintf('%02d', hour.nil? ? target_at.hour : hour)
-      min_str = min.nil? ? '' : "_#{ sprintf('%02d', min) }"
+      min_str = sprintf('%02d', min.nil? ? target_at.min : min) if @min_count
 
       # テーブル名を決定
-      table_name = "#{@prefix}_#{date_str}_#{hour_str}#{min_str}"
+      table_name = [@prefix, date_str, "#{ hour_str }#{ min_str || '' }"].join('_')
 
       # テーブルを取得できたらそのまま返却
       bq_table = dataset.table(table_name)
@@ -177,5 +178,12 @@ module UvUtil2
       @logger.public_send(level, e.message)
     end
 
+    # 現在日時からテーブル名の分数を計算. 分単位のテーブル分割をしていない場合 nil を返す
+    # @param now [Time] 現在日時
+    #
+    def calc_min_for_table(now: Time.now)
+      return nil if now.nil? || @min_count.nil?
+      (now.min.to_f / @min_count.to_f).floor * @min_count
+    end
   end
 end
