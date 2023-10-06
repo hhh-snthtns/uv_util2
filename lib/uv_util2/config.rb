@@ -7,7 +7,7 @@ module UvUtil2
   class Config
     def self.read(path, env=nil)
       open(path) do |f|
-        yaml = parse(::ERB.new(f).result)
+        yaml = parse(f)
         env.present? ? yaml[env] : yaml
       end
     end
