@@ -15,9 +15,9 @@ module UvUtil2
     def self.parse(file_object)
       begin
         # for Ruby 3.x+
-        ::YAML::load(::ERB.new(f.read).result, aliases: true).deep_symbolize_keys
+        ::YAML::load(::ERB.new(file_object.read).result, aliases: true).deep_symbolize_keys
       rescue ArgumentError
-        ::YAML::load(::ERB.new(f.read).result).deep_symbolize_keys
+        ::YAML::load(::ERB.new(file_object.read).result).deep_symbolize_keys
       end
     end
     private_class_method :parse
